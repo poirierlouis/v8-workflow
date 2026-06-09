@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  V8_VERSION: "14.9.207.21"
+  V8_COMMIT: "5a39b146dd810a52812202fae891281d5dc4db7d"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,23 +21,43 @@ jobs:
           sudo rm -rf /opt/ghc
           df -h
 
+      - name: Cache Source and Tools
+        id: cache-v8
+        uses: actions/cache@v4
+        with:
+          path: |
+            depot_tools
+            v8
+            .gclient
+            .gclient_entries
+          key: v8-source-linux64-${{ env.V8_VERSION }}
+
       - name: Install depot_tools
+        if: steps.cache-v8.outputs.cache-hit != 'true'
         run: |
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
           echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
 
-      - name: Fetch V8 Source
+      - name: Fetch V8
+        if: steps.cache-v8.outputs.cache-hit != 'true'
         run: |
-          export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
-          fetch v8
-          cd v8
-          git checkout 5a39b146dd810a52812202fae891281d5dc4db7d
+          gclient config --name=v8 https://chromium.googlesource.com/v8/v8.git
+          cat <<EOF >> .gclient
+          target_os = ["linux"]
+          custom_deps = {
+          "v8/third_party/android_sdk": False,
+          "v8/third_party/catapult": False,
+          "v8/tools/luci-go": False,
+          }
+          EOF
 
-      - name: Sync Dependencies
+      - name: Checkout and Sync V8 (if not cached)
+        if: steps.cache-v8.outputs.cache-hit != 'true'
         run: |
-          export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
           cd v8
-          gclient sync -D
+          git checkout ${{ env.V8_COMMIT }}
+          cd ..
+          gclient sync -D --no-history --reset
 
       - name: Install Build Dependencies
         run: |
@@ -46,21 +70,24 @@ jobs:
           cd v8
           mkdir -p out/Release
           cat <<EOF > out/Release/args.gn
+          target_cpu = "x64"
           is_component_build = false
           is_debug = false
-          target_cpu = "x64"
+          symbol_level = 0
+          treat_warnings_as_errors = false
           use_custom_libcxx = false
+          use_sysroot = false
           v8_enable_sandbox = false
           v8_enable_pointer_compression = false
+          v8_enable_webassembly = false
+          v8_enable_i18n_support = false
           v8_monolithic = true
           v8_use_external_startup_data = false
-          symbol_level = 0
           EOF
           gn gen out/Release
 
       - name: Build V8 Static Library
         run: |
-          export PATH=$GITHUB_WORKSPACE/depot_tools:$PATH
           cd v8
           ninja -C out/Release v8_monolith
 
@@ -71,11 +98,11 @@ jobs:
           cp -r include/* ../pack/include/
           cp out/Release/obj/libv8_monolith.a ../pack/lib/
           cd ../pack
-          tar -czf ../v8-14.9.207.21-linux64.tar.gz .
+          tar -czf ../v8-${{ env.V8_VERSION }}-linux64.tar.gz .
 
       - name: Upload V8 Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: v8-14.9.207.21-linux64
-          path: v8-14.9.207.21-linux64.tar.gz
+          name: v8-release
+          path: v8-${{ env.V8_VERSION }}-linux64.tar.gz
           retention-days: 3

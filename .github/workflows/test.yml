@@ -6,6 +6,10 @@ on:
     types:
       - completed
 
+env:
+  V8_VERSION: "14.9.207.21"
+  V8_COMMIT: "5a39b146dd810a52812202fae891281d5dc4db7d"
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -14,14 +18,14 @@ jobs:
       - name: Download V8 Artifact
         uses: actions/download-artifact@v4
         with:
-          name: v8-14.9.207.21-linux64
+          name: v8-release
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract V8 Release
         run: |
           mkdir -p v8/linux/x64/
-          tar -xzf v8-14.9.207.21-linux64.tar.gz -C v8/linux/x64/
+          tar -xzf v8-${{ env.V8_VERSION }}-linux64.tar.gz -C v8/linux/x64/
 
       - name: Fetch Test Code
         run: |
