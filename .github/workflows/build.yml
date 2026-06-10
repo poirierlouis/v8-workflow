@@ -21,25 +21,12 @@ jobs:
           sudo rm -rf /opt/ghc
           df -h
 
-      - name: Cache Source and Tools
-        id: cache-v8
-        uses: actions/cache@v5
-        with:
-          path: |
-            depot_tools
-            v8
-            .gclient
-            .gclient_entries
-          key: v8-source-linux64-${{ env.V8_VERSION }}
-
       - name: Install depot_tools
-        if: steps.cache-v8.outputs.cache-hit != 'true'
         run: |
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
           echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
 
       - name: Setup GClient
-        if: steps.cache-v8.outputs.cache-hit != 'true'
         run: |
           gclient config --name=v8 https://chromium.googlesource.com/v8/v8.git
           cat <<EOF >> .gclient
@@ -52,25 +39,13 @@ jobs:
           EOF
 
       - name: Fetch V8
-        if: steps.cache-v8.outputs.cache-hit != 'true'
         run: |
           gclient sync -D --no-history --reset --revision=v8@${{ env.V8_COMMIT }}
 
-      - name: Cache APT Packages
-        id: cache-apt
-        uses: actions/cache@v5
-        with:
-          path: /var/cache/apt/archives
-          key: v8-apt-linux64-v1
-
       - name: Install Build Dependencies
         run: |
-          if [ "${{ steps.cache-apt.outputs.cache-hit }}" = "true" ]; then
-            sudo apt-get install -y --no-install-recommends /var/cache/apt/archives/*.deb
-          else
-            cd v8
-            sudo ./build/install-build-deps.sh --no-prompt --no-chromeos-fonts --no-nacl --no-arm
-          fi
+          cd v8
+          sudo ./build/install-build-deps.sh --no-prompt --no-chromeos-fonts --no-nacl --no-arm
 
       - name: Configure GN Build Args
         run: |
