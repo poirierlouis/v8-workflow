@@ -34,7 +34,7 @@ jobs:
       - name: Extract Artifact
         run: |
           mkdir -p v8/
-          tar -xzf v8-${{ env.V8_VERSION }}-win64.tar.gz -C v8/
+          tar -xzf v8-${{ env.V8_VERSION }}-win64.zip -C v8/
 
       - name: Configure Developer Command Prompt for MSVC
         uses: ilammy/msvc-dev-cmd@v1
