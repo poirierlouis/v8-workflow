@@ -1,0 +1,67 @@
+name: Test V8 monolith - Windows
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Build V8 monolith - Windows"]
+    types:
+      - completed
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    env:
+      DEPOT_TOOLS_WIN_TOOLCHAIN: 0
+      V8_VERSION: 14.6.202.34
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Download Artifact
+        uses: dawidd6/action-download-artifact@v9
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          name: v8-${{ env.V8_VERSION }}-win64
+          run_id: ${{ github.event.workflow_run.id || '' }}
+          workflow: build-win.yml
+          check_artifacts: true
+          search_artifacts: true
+
+      - name: Extract Artifact
+        run: |
+          mkdir -p v8/
+          tar -xzf v8-${{ env.V8_VERSION }}-win64.tar.gz -C v8/
+
+      - name: Configure Developer Command Prompt for MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Compile examples
+        shell: cmd
+        run: |
+          cl.exe /EHsc /O2 ^
+                 /Iv8\include ^
+                 examples\hello_world.cpp ^
+                 /link /LIBPATH:v8\ v8_monolith.lib ^
+                 /Fe:hello_world.exe
+          cl.exe /EHsc /O2 ^
+                 /Iv8\include ^
+                 examples\wasm.cpp ^
+                 /link /LIBPATH:v8\ v8_monolith.lib ^
+                 /Fe:wasm.exe
+
+      - name: Check examples
+        shell: cmd
+        run: |
+          hello_world.exe > output.txt
+          echo Hello, World!>test.txt
+          fc.exe test.txt output.txt
+          
+          wasm.exe > output.txt
+          echo 3 + 4 = 7>test.txt
+          fc.exe test.txt output.txt

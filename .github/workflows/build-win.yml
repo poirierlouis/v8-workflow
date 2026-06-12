@@ -1,4 +1,4 @@
-name: V8 monolith - Windows
+name: Build V8 monolith - Windows
 
 on:
   push:
