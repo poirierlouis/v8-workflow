@@ -55,22 +55,22 @@ jobs:
       - name: Patch V8
         shell: cmd
         run: |
-          cd %GITHUB_WORKSPACE%\v8\
-          git apply %GITHUB_WORKSPACE%\win\x64\patches\v8_14.6.202.34.patch
-          git -C build apply %GITHUB_WORKSPACE%\win\x64\patches\v8_build_14.6.202.34.patch
+          cd v8\
+          git apply ..\win\x64\patches\v8_14.6.202.34.patch
+          git -C build apply ..\win\x64\patches\v8_build_14.6.202.34.patch
 
       - name: Run GN
         shell: cmd
         run: |
-          cd %GITHUB_WORKSPACE%\v8\
+          cd v8\
           mkdir out\release
-          copy %GITHUB_WORKSPACE%\win\x64\args.gn out\release\args.gn
+          copy ..\win\x64\args.gn out\release\args.gn
           call gn gen out\release
 
       - name: Compile V8
         shell: cmd
         run: |
-          cd %GITHUB_WORKSPACE%\v8\
+          cd v8\
           call ninja -C out\release v8_monolith
 
       - name: Stage Artifact
@@ -79,9 +79,9 @@ jobs:
           mkdir dist\lib
           mkdir dist\include
           
-          copy %GITHUB_WORKSPACE%\v8\out\release\obj\v8_monolith.lib dist\lib\
-          xcopy %GITHUB_WORKSPACE%\v8\include\*.h dist\include /E /I /Y
-          copy %GITHUB_WORKSPACE%\v8\LICENSE* dist\
+          copy v8\out\release\obj\v8_monolith.lib dist\lib\
+          xcopy v8\include\*.h dist\include /E /I /Y
+          copy v8\LICENSE* dist\
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
